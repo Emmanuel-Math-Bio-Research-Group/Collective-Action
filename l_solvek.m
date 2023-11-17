@@ -1,31 +1,38 @@
-function [l,A] = l_solvek(W, k, lkMinusOne, AkMinusOne)
-%W = matrix of edgeweights, k = size of subsets, lkminusone is the l_k
-%before the k we want to caclulate. Akminusone is the A matrix before the k
-%we want to calculate
-Wsum= sum(W, 2);  %Sums up each row of the matrix
-P = W./Wsum;
-%P = The matrix of step probabilities
-%N = The number of rows and columns of W
-N = size(W, 1); %Size of the matrix with W rows and 1 column
-Nck = nchoosek(N,k); 
-M = eye(Nck); %identity vector of Nck size
-Z = ones(Nck, 1); %one vector of Nck rows and 1 column
-A = nchoosek(1:N,k); %nchoosek of all potential subsets
-for j = (1 : Nck)
-    Svec = A(j,:); %This follows the same principle of l_solve3_Alt. it calculates a list of subsets
-    %And if any i value is within sMinusH it computes the necessary value of
-    %Z. Else it will compute the corresponding value of M
-    for h=Svec
-        sMinusH=Svec(Svec~=h);
-        for i = (1:N)
-            if any(i==sMinusH) 
-                Z(j) = Z(j) + 1/k*(P(h,i))*lkMinusOne(findJ(AkMinusOne,sMinusH));
+function [l, A] = l_solvek(W,k,lprev,Aprev)
+%%% This function calculates the coalescent lengths of all subsets 
+%%% of size k for a given graph with adjaceny matrix W
+%
+% Inputs:  W is the weighted adjacency matrix
+%          k is subset size
+%          lprev is vector of coalescent lengths for subsets of size k-1
+%          Aprev is matrix of subsets of size k-1 used for enumeration
+% Outputs: l is a vector of coalescent lengths
+%          A is a matrix of subsets of size k used for enumeration
+
+N = size(W,1);  %number of vertices
+P = W./sum(W,2); %step probabilities
+Nck = nchoosek(N,k);  %number of coalescent lengths l to calculate
+A = nchoosek(1:N,k); %indexing of all possible subsets of size k
+M = eye(Nck); %coefficient matrix to solve for l's
+z = ones(Nck,1); %initialize RHS column vector
+
+%construct M coefficient matrix
+for s = 1: Nck
+    Svec = A(s,:);
+    for j = Svec
+        SminusJ = Svec(Svec ~= j);
+        for i = 1:N
+            if any(i == SminusJ)  %if vertex i is in set SminusJ
+                z(s) = z(s) + 1/k*P(j,i)*lprev(findJ(Aprev,SminusJ));
             else 
-                ind = findJ(A,[sMinusH,i]);
-                M(j, ind) = M(j,ind) - P(h,i)/k;
+                ind = findJ(A, [SminusJ, i]);
+                M(s,ind) = M(s,ind) - P(j,i)/k;
             end
         end
     end
 end
-l = M\Z; %and then it computes the matrix operation
+
+%Solve Ml = z for coalescent lengths
+l = M\z;
+
 end
